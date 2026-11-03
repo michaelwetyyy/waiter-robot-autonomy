@@ -1,0 +1,21 @@
+# Mac brain deps (mac/run_brain.py). The full waiter_lib brain — perception,
+# LiDAR mapping/scan-match, A*/DWA, the FSM — runs HERE against the Pi's thin
+# proxy and serves the dashboard on http://localhost:8080. The Pi only proxies
+# sensors/actuators (see pi/requirements.txt).
+#
+# MUST be a venv created LOCALLY on this Mac, named mac/.venv-local — run_brain
+# re-execs into it. A venv COPIED from another machine fails: macOS library
+# validation refuses native .so/.dylib files signed elsewhere ("library load
+# disallowed by system policy"). MediaPipe has no 3.13 wheel — use 3.11/3.12.
+#
+#   python3.12 -m venv mac/.venv-local
+#   mac/.venv-local/bin/pip install -r mac/requirements.txt
+#
+pyzmq                       # ZeroMQ link to the Pi proxy (mac/remote_source.py)
+opencv-contrib-python>=4.8  # cv2.aruco lives in contrib (cup-marker detection)
+# Pin to a mediapipe that still ships the legacy Solutions API
+# (mp.solutions.hands). 0.10.35+ is Tasks-API-only and drops it, which breaks
+# gesture_detector.py.
+mediapipe==0.10.18
+numpy>=1.24,<2.0            # mediapipe wheels are built against numpy 1.x
+Pillow                      # telemetry map PNG render

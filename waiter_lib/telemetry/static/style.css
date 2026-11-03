@@ -1,0 +1,376 @@
+/* Telemetry dashboard: dark, glassy, card-based. */
+
+:root {
+  --bg:          #0a0d13;
+  --surface:     #131925;
+  --surface-2:   #0c1018;     /* insets: log, map background */
+  --line:        #232c3a;
+  --line-soft:   #1a212c;
+  --text:        #dde4ee;
+  --text-dim:    #8794a6;
+  --text-faint:  #5c6878;
+  --accent:      #57a6ff;
+  --accent-dim:  #2b3a52;
+  --ok:          #5ec27a;
+  --bad:         #e07a55;
+  --warn:        #e0b341;
+  --radius:      11px;
+  --radius-sm:   7px;
+  --pad:         1rem;
+  --shadow:      0 1px 2px rgba(0,0,0,.5), 0 8px 24px -10px rgba(0,0,0,.6);
+  --mono:        ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, #16202e 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 0%, #15131f 0%, transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+  font: 13.5px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Header */
+header {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 0.9rem;
+  padding: 0.7rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(10, 13, 19, 0.72);
+  backdrop-filter: blur(10px);
+}
+.brand { display: flex; align-items: baseline; gap: 0.5rem; }
+.brand-dot {
+  align-self: center;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(87,166,255,.18), 0 0 10px rgba(87,166,255,.6);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+header h1 {
+  margin: 0; font-size: 1rem; font-weight: 650;
+  letter-spacing: 0.01em; color: #eef2f8;
+}
+.brand-sub {
+  font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-faint); font-weight: 600;
+}
+
+.state-pill {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.24rem 0.7rem 0.24rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 650; font-size: 0.72rem;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  background: #1b2230; color: var(--text-dim);
+  border: 1px solid var(--line);
+  transition: background .2s, color .2s, border-color .2s;
+}
+.state-pill::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%;
+  background: currentColor; box-shadow: 0 0 8px currentColor;
+}
+.state-pill.SEARCH      { background: #241f3a; border-color: #463c6e; color: #b6a9ee; }
+.state-pill.SEEK        { background: #15321f; border-color: #2c6f4a; color: #74d69b; }
+.state-pill.DONE        { background: #173318; border-color: #3f8f3f; color: #79d979; }
+
+/* Brain connect/disconnect toggle (header). Green = brain drives the bot;
+   pulsing red = disconnected, bot just balances in place. */
+.brain-toggle {
+  margin-left: .6rem;
+  padding: .34rem .8rem;
+  font: 600 .72rem/1 var(--mono);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ok);
+  background: #15321f;
+  border: 1px solid #2c6f4a;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .2s, color .2s, border-color .2s;
+}
+.brain-toggle:hover { border-color: var(--ok); }
+.brain-toggle.off {
+  color: var(--bad);
+  background: #3a1714;
+  border-color: #8a3527;
+  animation: brainpulse 1.2s ease-in-out infinite;
+}
+@keyframes brainpulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224, 122, 85, 0); }
+  50%      { box-shadow: 0 0 0 4px rgba(224, 122, 85, .18); }
+}
+
+/* FSM mode buttons (auto | pause): a small segmented control. */
+.mode-group {
+  margin-left: .6rem;
+  display: inline-flex;
+  border: 1px solid #2c4a6f;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.mode-btn {
+  padding: .34rem .7rem;
+  font: 600 .72rem/1 var(--mono);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #8fb3d9;
+  background: #15233a;
+  border: 0;
+  border-left: 1px solid #2c4a6f;
+  cursor: pointer;
+}
+.mode-btn:first-child { border-left: 0; }
+.mode-btn:hover { color: #cfe3ff; }
+.mode-btn.active { color: #07121f; background: #5aa0e0; }
+/* Pause being the active mode is a held state worth flagging. */
+#mode-pause.active {
+  color: var(--bad); background: #3a1714;
+  animation: brainpulse 1.2s ease-in-out infinite;
+}
+
+.tick {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  font-family: var(--mono); font-size: 0.75rem;
+  color: var(--text); background: #11151e;
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+}
+.tick-label { color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.6rem; }
+.tick span#tick { font-variant-numeric: tabular-nums; }
+
+/* Layout */
+.dash { max-width: 1500px; margin: 0 auto; padding: 1.1rem; }
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;          /* each card hugs its image; no stretch gap */
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 760px) { .panels { grid-template-columns: 1fr; } }
+
+/* Cards */
+.panel {
+  background: linear-gradient(180deg, #161d2a 0%, var(--surface) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.7rem;
+  box-shadow: var(--shadow);
+}
+.panel h2, .readout h3, .log-section h3 {
+  margin: 0 0 0.55rem 0;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--text-dim);
+  font-weight: 700;
+  display: flex; align-items: center; gap: 0.45rem;
+}
+.panel h2 .dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot-cam { background: #e0b341; box-shadow: 0 0 7px rgba(224,179,65,.6); }
+.dot-map { background: var(--accent); box-shadow: 0 0 7px rgba(87,166,255,.6); }
+
+.media, .map-viewport {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-2);
+}
+.panel img { display: block; width: 100%; height: auto; }
+#camera { image-rendering: auto; }            /* photo: keep smooth */
+#map    { image-rendering: pixelated; }        /* rendered grid: keep crisp */
+
+/* Map viewport + interactions */
+.map-viewport {
+  position: relative;
+  cursor: grab;
+  user-select: none;
+  aspect-ratio: 1 / 1;        /* matches the 900×900 render; no layout shift */
+  touch-action: none;
+}
+.map-viewport.dragging { cursor: grabbing; }
+.map-viewport img {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  transform-origin: 0 0;
+  will-change: transform;
+  border-radius: 0;
+}
+
+/* Floating glassy overlays on the map. */
+.goal-hint, .zoom-toolbar-overlay {
+  position: absolute; z-index: 2;
+  background: rgba(10, 13, 19, 0.74);
+  border: 1px solid rgba(120, 140, 170, 0.18);
+  border-radius: 9px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px -6px rgba(0,0,0,.7);
+}
+.goal-hint {
+  top: 0.6rem; left: 0.6rem;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.66rem; color: var(--text-dim);
+  pointer-events: none;
+}
+.goal-hint b { color: var(--text); font-weight: 600; }
+.zoom-toolbar-overlay { top: 0.6rem; right: 0.6rem; padding: 0.4rem; }
+.zoom-toolbar { display: flex; flex-direction: column; gap: 0.35rem; }
+.toolbar-row { display: flex; align-items: center; gap: 0.35rem; }
+.zoom-level {
+  font-family: var(--mono); font-size: 0.7rem; color: var(--text);
+  min-width: 3rem; text-align: center; font-variant-numeric: tabular-nums;
+}
+
+/* Buttons (unified) */
+button {
+  font: inherit;
+  background: #1c2532;
+  color: var(--text);
+  border: 1px solid #2c3848;
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  font-size: 0.74rem; font-weight: 600; line-height: 1.3;
+  transition: background .15s, border-color .15s, transform .05s;
+}
+button:hover  { background: #25303f; border-color: #3a485b; }
+button:active { background: #2e3a4b; transform: translateY(1px); }
+.pad-row button {
+  min-width: 1.85rem; height: 1.85rem; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.95rem;
+}
+.zoom-toolbar button { min-width: 1.6rem; }
+/* wall-clear controls */
+.wall-row button { flex: 1; font-size: 0.66rem; }
+.zoom-toolbar button.active {
+  background: var(--accent); color: #08131f; border-color: var(--accent);
+}
+.map-viewport.erasing { cursor: crosshair; }
+.map-viewport.placing { cursor: cell; }
+
+/* Telemetry readout grid */
+.telemetry {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(186px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.readout {
+  background: linear-gradient(180deg, #161d2a 0%, var(--surface) 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem 0.7rem;
+  box-shadow: var(--shadow);
+  transition: border-color .15s, transform .15s;
+}
+.readout:hover { border-color: #2f3b4c; transform: translateY(-1px); }
+.readout h3 em {
+  font-style: normal; color: var(--text-faint);
+  font-size: 0.82em; letter-spacing: 0.04em; margin-left: auto;
+  text-transform: none;
+}
+.readout-goal { border-color: var(--accent-dim); }
+.readout-perf { border-color: var(--accent-dim); }
+
+/* link-health badge in the pipeline panel heading */
+.badge {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: none;
+  padding: 0.08rem 0.42rem; border-radius: 999px;
+  background: #1b2230; color: var(--text-dim); border: 1px solid var(--line);
+}
+.badge.ok  { background: rgba(94,194,122,.16);  color: var(--ok);  border-color: rgba(94,194,122,.45); }
+.badge.bad { background: rgba(224,122,85,.16);   color: var(--bad); border-color: rgba(224,122,85,.45); }
+
+.kv {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: var(--mono);
+  font-size: 0.82rem; padding: 0.16rem 0;
+  border-top: 1px solid var(--line-soft);
+}
+.kv:first-of-type { border-top: none; }
+.kv > span:first-child { color: var(--text-dim); font-family: -apple-system, system-ui, sans-serif; font-size: 0.78rem; }
+.kv > span:last-child  { color: var(--text); font-variant-numeric: tabular-nums; }
+.kv > span.ok  { color: var(--ok); }
+.kv > span.bad { color: var(--bad); font-weight: 700; }
+
+/* "clear" buttons living inside a heading. */
+.readout h3 button, .log-section h3 button {
+  margin-left: auto;
+  padding: 0.12rem 0.5rem;
+  font-size: 0.62rem; text-transform: none; letter-spacing: 0;
+  font-weight: 600;
+}
+
+/* Transition log */
+.log-section { margin-bottom: 0.5rem; }
+.log-section h3 { letter-spacing: 0.11em; }
+#log {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  max-height: 210px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  color: #aab4c2;
+  white-space: pre-wrap;
+  box-shadow: var(--shadow);
+}
+#log::-webkit-scrollbar { width: 9px; }
+#log::-webkit-scrollbar-thumb { background: #2a3442; border-radius: 9px; border: 2px solid var(--surface-2); }
+#log::-webkit-scrollbar-track { background: transparent; }
+
+/* manual-drive joystick: a fixed bottom-right thumb pad (touch + mouse). Drag
+   the knob to drive; release to stop. Dimmed until hovered/active so it doesn't
+   fight the dashboard for attention. */
+.joystick {
+  position: fixed; right: 18px; bottom: 18px; z-index: 50;
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+  user-select: none; touch-action: none; opacity: 0.78;
+  transition: opacity 0.2s;
+}
+.joystick:hover, .joystick.active { opacity: 1; }
+.joy-ring {
+  position: relative; width: 118px; height: 118px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, #1a2434, #0c1018);
+  border: 1px solid var(--line); box-shadow: var(--shadow);
+  display: flex; align-items: center; justify-content: center;
+}
+.joystick.active .joy-ring { border-color: var(--accent-dim); }
+.joy-knob {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: linear-gradient(180deg, #6fb3ff, var(--accent));
+  border: 1px solid #8fc4ff; box-shadow: 0 2px 6px rgba(0,0,0,.5);
+  transition: transform 0.08s ease-out; cursor: grab;
+}
+.joystick.active .joy-knob { cursor: grabbing; transition: none; }
+.joy-arrow {
+  position: absolute; color: var(--text-faint); font-size: 0.6rem;
+  pointer-events: none;
+}
+.joy-arrow.up   { top: 6px; }
+.joy-arrow.down { bottom: 6px; }
+.joy-arrow.left { left: 8px; }
+.joy-arrow.right{ right: 8px; }
+.joy-cap {
+  font: 600 0.62rem/1 var(--mono); color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.12em;
+}
+.joystick.active .joy-cap { color: var(--accent); }

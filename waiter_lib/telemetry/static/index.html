@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>waiter bot · telemetry</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="brand-dot"></span>
+    <h1>waiter&nbsp;bot</h1>
+    <span class="brand-sub">telemetry</span>
+  </div>
+  <div class="state-pill" id="state-pill">…</div>
+  <div class="mode-group" role="group" aria-label="FSM mode">
+    <button class="mode-btn" id="mode-auto"
+            title="run the normal mission: SEARCH (spin to find the cup) → SEEK → DONE">auto</button>
+    <button class="mode-btn" id="mode-pause"
+            title="halt the FSM: stop the spin / all driving (the bot keeps balancing). Click auto to resume.">pause</button>
+  </div>
+  <button class="brain-toggle" id="brain-toggle"
+          title="disconnect the brain so the bot just balances in place (no drive commands sent to the ESP)">brain&nbsp;connected</button>
+  <button class="brain-toggle" id="calibrate-yaw"
+          title="recalibrate the ESP yaw-gyro bias (hold the robot still) and persist it to flash">calibrate&nbsp;yaw</button>
+  <button class="brain-toggle" id="return-home" disabled
+          title="drive back to where the bot set off from (after it parked at a cup or hand) and stop">return&nbsp;home</button>
+  <div class="tick"><span class="tick-label">tick</span><span id="tick">0</span></div>
+</header>
+
+<main class="dash">
+  <section class="panels">
+    <div class="panel">
+      <h2><span class="dot dot-cam"></span>camera</h2>
+      <div class="media"><img id="camera" src="/frame.jpg" alt="bot camera"></div>
+    </div>
+    <div class="panel">
+      <h2><span class="dot dot-map"></span>map</h2>
+      <div class="map-viewport" id="map-viewport">
+        <img id="map" src="/map.png" alt="top-down map">
+        <div class="goal-hint" id="goal-hint">
+          <b>click</b> set A* goal · <b>drag</b> pan · <b>scroll</b> zoom
+        </div>
+        <div class="zoom-toolbar zoom-toolbar-overlay">
+          <div class="toolbar-row">
+            <button data-zoom-action="out" title="zoom out">-</button>
+            <span class="zoom-level" id="zoom-level">100%</span>
+            <button data-zoom-action="in" title="zoom in">+</button>
+            <button data-zoom-action="reset" title="full reset: wipe the map (walls, trail, plan) + re-zero pose to origin. Double-click the map for a view-only reset.">reset</button>
+          </div>
+          <div class="toolbar-row pad-row">
+            <button data-pan-action="left"  title="pan left (←)">←</button>
+            <button data-pan-action="up"    title="pan up (↑)">↑</button>
+            <button data-pan-action="down"  title="pan down (↓)">↓</button>
+            <button data-pan-action="right" title="pan right (→)">→</button>
+          </div>
+          <div class="toolbar-row wall-row">
+            <button id="erase-toggle" title="erase mode: click the map to clear walls near that point">erase walls</button>
+            <button id="clear-walls" title="clear all observed walls">clear all</button>
+          </div>
+          <div class="toolbar-row wall-row">
+            <button id="move-bot" title="move-bot mode: click the map to set the bot's position">move bot</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="telemetry">
+    <div class="readout readout-perf">
+      <h3>performance</h3>
+      <div class="kv"><span>tick rate</span><span id="tickHz">·</span></div>
+      <div class="kv"><span>perception</span><span id="percMs">·</span></div>
+      <div class="kv"><span>A* plan</span><span id="planMs">·</span></div>
+      <div class="kv"><span>map render</span><span id="renderMs">·</span></div>
+    </div>
+    <div class="readout readout-perf">
+      <h3>pipeline <span class="badge" id="linkBadge">·</span></h3>
+      <div class="kv"><span>LiDAR</span><span id="lidarHz">·</span></div>
+      <div class="kv"><span>camera</span><span id="camFps">·</span></div>
+    </div>
+    <div class="readout">
+      <h3>balance <em>ESP32</em></h3>
+      <div class="kv"><span>tilt</span><span id="tilt">·</span></div>
+      <div class="kv"><span>yaw</span><span id="balYaw">·</span></div>
+      <div class="kv"><span>cmd L/R</span><span id="cmdLR">·</span></div>
+    </div>
+    <div class="readout">
+      <h3>pose</h3>
+      <div class="kv"><span>x</span><span id="bx">·</span></div>
+      <div class="kv"><span>y</span><span id="by">·</span></div>
+      <div class="kv"><span>yaw</span><span id="byaw">·</span></div>
+    </div>
+    <div class="readout">
+      <h3>cup estimate</h3>
+      <div class="kv"><span>x</span><span id="cupx">·</span></div>
+      <div class="kv"><span>y</span><span id="cupy">·</span></div>
+      <div class="kv"><span>dist</span><span id="cupd">·</span></div>
+    </div>
+    <div class="readout">
+      <h3>near field <em>cm</em></h3>
+      <div class="kv"><span>hard L</span><span id="hL">·</span></div>
+      <div class="kv"><span>L</span><span id="L">·</span></div>
+      <div class="kv"><span>ahead</span><span id="A">·</span></div>
+      <div class="kv"><span>R</span><span id="R">·</span></div>
+      <div class="kv"><span>hard R</span><span id="hR">·</span></div>
+    </div>
+    <div class="readout">
+      <h3>plan</h3>
+      <div class="kv"><span>wall cells</span><span id="walls">·</span></div>
+      <div class="kv"><span>path len</span><span id="plen">·</span></div>
+      <div class="kv"><span>wp</span><span id="pidx">·</span></div>
+    </div>
+    <div class="readout readout-goal">
+      <h3>A* goal <button id="clear-goal" title="clear the A* goal">clear</button></h3>
+      <div class="kv"><span>x</span><span id="gx">·</span></div>
+      <div class="kv"><span>y</span><span id="gy">·</span></div>
+      <div class="kv"><span>reachable</span><span id="greach">·</span></div>
+      <div class="kv"><span>route len</span><span id="gplen">·</span></div>
+      <div class="kv"><span>explored</span><span id="gexp">·</span></div>
+    </div>
+  </section>
+
+  <section class="log-section">
+    <h3>transitions <button id="clear-log">clear</button></h3>
+    <pre id="log"></pre>
+  </section>
+</main>
+
+<div class="joystick" id="joystick"
+     title="drag to drive · release to stop · or hold W A S D">
+  <div class="joy-ring" id="joy-ring">
+    <span class="joy-arrow up">▲</span>
+    <span class="joy-arrow down">▼</span>
+    <span class="joy-arrow left">◀</span>
+    <span class="joy-arrow right">▶</span>
+    <div class="joy-knob" id="joy-knob"></div>
+  </div>
+  <div class="joy-cap" id="joy-cap">drive</div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

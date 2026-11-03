@@ -1,0 +1,9 @@
+# Pi thin-proxy deps (pi/proxy.py). The Pi does NO interpretation — it just
+# streams D500 LiDAR + ESP32 odometry + camera frames to the Mac over ZeroMQ
+# and relays drive commands back. All vision/mapping/planning runs on the Mac.
+#
+# picamera2 is NOT pip-installable here — it comes from the Pi's system
+# site-packages, so build the venv with --system-site-packages (see README).
+pyzmq
+numpy
+pyserial
